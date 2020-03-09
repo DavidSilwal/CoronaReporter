@@ -1,0 +1,85 @@
+﻿@page "/high-risk-cases"
+@using CoronaReporter.Data
+@using CoronaReporter.Service
+@using Microsoft.EntityFrameworkCore
+@inject MedicalDataManager MedicalDataManager
+@inject CoronaReporterContext Context
+@inject IJSRuntime JsRuntime 
+@implements IDisposable
+
+@*Comment*@
+
+<h1>Urgent Cases</h1>
+
+<div>
+    <MatCheckbox TValue="bool" Value="@IncludeReported" Label="Include reported" ValueChanged="@(e => UpdateIncludeReported(e))"/>
+</div>
+
+@*
+<div>
+    <MatButton OnClick="@Report" Label="Report" />
+</div>
+*@
+
+<MatTable Items="@Consultations" Striped="true" PageSize="100" class="mat-elevation-z5">
+    <MatTableHeader>
+        <th />
+        <th>First Name</th>
+        <th>Last Name</th>
+        <th>Date of Birth</th>
+    </MatTableHeader>
+    <MatTableRow>
+        <td><MatCheckbox Value="@(!context.IsReported)"/></td>
+        <td>@context.Patient.FirstName</td>
+        <td>@context.Patient.LastName</td>
+        <td>@context.Patient.DateOfBirth.ToShortDateString()</td>
+    </MatTableRow>
+</MatTable>
+
+<MatButton OnClick="@Print">Print</MatButton>
+
+@code
+{
+    List<Consultation> Consultations;
+    bool IncludeReported;
+
+    protected override void OnInitialized()
+    {
+        LoadConsultations();
+        MedicalDataManager.LabReportReceived += OnLabReportReceived;
+    }
+
+    void LoadConsultations(bool includeReported = false)
+    {
+        var query = Context.Consultations
+            .Include(c => c.Patient)
+            .Where(c => c.LabTestResult == true);
+
+        if (!includeReported)
+            query = query.Where(c => !c.IsReported);
+
+        Consultations = query.ToList();
+    }
+
+    async void OnLabReportReceived(Consultation consultation)
+    {
+        Consultations?.Add(consultation);
+        
+        await InvokeAsync(StateHasChanged);
+        await JsRuntime.InvokeAsync<object>("notifyNewPositiveLabReport");
+    }
+
+    async void UpdateIncludeReported(bool value)
+    {
+        LoadConsultations(value);
+        IncludeReported = value;
+        await InvokeAsync(StateHasChanged);
+    }
+    
+    void Print() => JsRuntime.InvokeAsync<object>("foo");
+    
+    public void Dispose()
+    {
+        MedicalDataManager.LabReportReceived -= OnLabReportReceived;
+    }
+}
