@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using CoronaReporter.Data;
+using CoronaReporter.Model;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -77,7 +78,7 @@ namespace CoronaReporter.Service
                 return;
             }
 
-            var consultation = patient.Consultations.SingleOrDefault(c => !c.IsReported);
+            var consultation = patient.Consultations.SingleOrDefault(c => !c.IsAdmissionReported);
             if (consultation == null)
             {
                 _logger.LogError($"Received lab report (TestResult={labReportArgs.TestResult}), but no open consultation found for patient: {patient}");

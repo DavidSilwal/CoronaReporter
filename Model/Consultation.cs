@@ -1,6 +1,6 @@
 using System;
 
-namespace CoronaReporter.Data
+namespace CoronaReporter.Model
 {
     public class Consultation
     {
@@ -20,9 +20,19 @@ namespace CoronaReporter.Data
         public bool? LabTestResult { get; set; }
         
         /// <summary>
-        /// Whether the patient has been reported to the health authorities.
+        /// Whether an anamnesis has been properly populated for this patient consultation, whether automatic
+        /// or manual.
         /// </summary>
-        public bool IsReported { get; set; }
-
+        public bool IsAnamnesisPopulated { get; set; }
+        
+        /// <summary>
+        /// Whether the admission has been reported to the health authorities.
+        /// </summary>
+        public bool IsAdmissionReported { get; set; }
+        
+        /// <summary>
+        /// Whether the test result has been reported to the health authorities.
+        /// </summary>
+        public bool IsTestResultReported { get; set; }
     }
 }

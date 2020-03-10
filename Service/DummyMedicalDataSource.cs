@@ -19,21 +19,21 @@ namespace CoronaReporter.Service
 
         void OnElapsed(object state)
         {
-            var newPatientId = Interlocked.Increment(ref _patientId);
-            
-            PatientAdmitted?.Invoke(new AdmissionArgs
-            {
-                PatientId = newPatientId.ToString(),
-                FirstName = "John",
-                LastName = "Doe" + newPatientId,
-                DateOfBirth = new DateTime(1979, 1, 1)
-            });
-            
-            LabReportReceived?.Invoke(new LabReportArgs
-            {
-                PatientId = newPatientId.ToString(),
-                TestResult = true 
-            });
+            // var newPatientId = Interlocked.Increment(ref _patientId);
+            //
+            // PatientAdmitted?.Invoke(new AdmissionArgs
+            // {
+            //     PatientId = newPatientId.ToString(),
+            //     FirstName = "John",
+            //     LastName = "Doe" + newPatientId,
+            //     DateOfBirth = new DateTime(1979, 1, 1)
+            // });
+            //
+            // LabReportReceived?.Invoke(new LabReportArgs
+            // {
+            //     PatientId = newPatientId.ToString(),
+            //     TestResult = true 
+            // });
         }
         
         public void Dispose() => _timer.Dispose();

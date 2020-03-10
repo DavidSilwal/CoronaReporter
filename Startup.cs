@@ -3,6 +3,9 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Net.Http;
 using System.Threading.Tasks;
+using Blazorise;
+using Blazorise.Bootstrap;
+using Blazorise.Icons.FontAwesome;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Authorization;
@@ -31,24 +34,27 @@ namespace CoronaReporter
 
         public void ConfigureServices(IServiceCollection services)
         {
-            // services.AddDbContext<CoronaReporterDbContext>(options =>
-            //     options.UseSqlite(
-            //         Configuration.GetConnectionString("DefaultConnection")));
             services.AddDbContext<CoronaReporterContext>(options =>
                 options.UseNpgsql(
-                    Configuration.GetConnectionString("DefaultPostgresConnection")));
+                    Configuration.GetConnectionString("DefaultConnection")));
             
             services.AddDefaultIdentity<IdentityUser>(options => options.SignIn.RequireConfirmedAccount = true)
                 .AddEntityFrameworkStores<CoronaReporterContext>();
             services.AddRazorPages();
             services.AddServerSideBlazor();
             services.AddScoped<AuthenticationStateProvider, RevalidatingIdentityAuthenticationStateProvider<IdentityUser>>();
+
+            services
+                .AddBlazorise( options =>
+                {
+                    options.ChangeTextOnKeyPress = true; // optional
+                } )
+                .AddBootstrapProviders()
+                .AddFontAwesomeIcons();
             
             services.AddSingleton<IMedicalDataSource>(new DummyMedicalDataSource(TimeSpan.FromSeconds(3)));
             services.AddSingleton<MedicalDataManager>();
             
-            // Required for MatTable
-            services.AddScoped<HttpClient>();
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
@@ -74,6 +80,10 @@ namespace CoronaReporter
             app.UseAuthentication();
             app.UseAuthorization();
 
+            app.ApplicationServices
+                .UseBootstrapProviders()
+                .UseFontAwesomeIcons();
+
             app.UseEndpoints(endpoints =>
             {
                 endpoints.MapControllers();
@@ -83,7 +93,6 @@ namespace CoronaReporter
 
             if (env.IsDevelopment())
             {
-                // Temporary?
                 context.Database.EnsureDeleted();
                 context.Database.EnsureCreated();
             }

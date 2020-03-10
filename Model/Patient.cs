@@ -2,14 +2,13 @@ using System;
 using System.Collections.Generic;
 using CoronaReporter.Service;
 
-namespace CoronaReporter.Data
+namespace CoronaReporter.Model
 {
     public class Patient
     {
         public string Id { get; set; }
 
-        public string FirstName { get; set; }
-        public string LastName { get; set; }
+        public string Name { get; set; }
         public DateTime DateOfBirth { get; set; }
         
         public string Address { get; set; }
@@ -26,12 +25,11 @@ namespace CoronaReporter.Data
         internal void PopulateFrom(AdmissionArgs admissionArgs)
         {
             Id = admissionArgs.PatientId;
-            FirstName = admissionArgs.FirstName;
-            LastName = admissionArgs.LastName;
+            Name = admissionArgs.Name;
             DateOfBirth = admissionArgs.DateOfBirth;
         }
         
         public override string ToString()
-            => $"Id={Id} FirstName={FirstName} LastName={LastName}";
+            => $"Id={Id} Name={Name}";
     }
 }

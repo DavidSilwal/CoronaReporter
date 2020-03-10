@@ -1,85 +1,141 @@
 ﻿@page "/high-risk-cases"
 @using CoronaReporter.Data
+@using CoronaReporter.Model
 @using CoronaReporter.Service
 @using Microsoft.EntityFrameworkCore
+@using Microsoft.EntityFrameworkCore.Internal
 @inject MedicalDataManager MedicalDataManager
-@inject CoronaReporterContext Context
+@inject CoronaReporterContext DbContext
 @inject IJSRuntime JsRuntime 
 @implements IDisposable
 
 @*Comment*@
 
-<h1>Urgent Cases</h1>
+<h1>High-Risk Cases</h1>
 
-<div>
-    <MatCheckbox TValue="bool" Value="@IncludeReported" Label="Include reported" ValueChanged="@(e => UpdateIncludeReported(e))"/>
-</div>
+Reports need to be submitted urgently for the patients below:
 
-@*
-<div>
-    <MatButton OnClick="@Report" Label="Report" />
-</div>
-*@
+<DataGrid TItem="Consultation"
+          Data="@Consultations"
+          @bind-SelectedRow="@SelectedConsultation"
+          Filterable="true"
+          IsStriped="true">
+        <DataGridColumn TItem="Consultation" Field="Patient.Name" Caption="Name" Editable="true"/>
+        <DataGridDateColumn TItem="Consultation" Field="Patient.DateOfBirth" Caption="Date of Birth">
+            <DisplayTemplate>
+                @{
+                    var date = (context as Consultation)?.Patient.DateOfBirth;
 
-<MatTable Items="@Consultations" Striped="true" PageSize="100" class="mat-elevation-z5">
-    <MatTableHeader>
-        <th />
-        <th>First Name</th>
-        <th>Last Name</th>
-        <th>Date of Birth</th>
-    </MatTableHeader>
-    <MatTableRow>
-        <td><MatCheckbox Value="@(!context.IsReported)"/></td>
-        <td>@context.Patient.FirstName</td>
-        <td>@context.Patient.LastName</td>
-        <td>@context.Patient.DateOfBirth.ToShortDateString()</td>
-    </MatTableRow>
-</MatTable>
+                    if (date != null)
+                    {
+                        @($"{date.Value.ToString("dd-MMM-yyyy")}")
+                    }
+                }
+            </DisplayTemplate>
+        </DataGridDateColumn>
+        <DataGridCheckColumn TItem="Consultation" Field="Patient.IsHighRisk" Caption="High Risk?"/>
+        <DataGridColumn TItem="Consultation" Field="Patient.Name" Caption="Name" Editable="true"/>
+</DataGrid>
 
-<MatButton OnClick="@Print">Print</MatButton>
+<Button Clicked="@ShowAnamnesisModal" Color="Color.Primary">Fill out anamnesis...</Button>
+
+<Button Clicked="@SendReportForAll" Color="Color.Primary">Send report for all cases</Button>
+
+<Modal @ref="AnamnesisModelRef">
+    <ModalBackdrop />
+    <ModalContent IsCentered="true">
+        <ModalHeader>
+            <ModalTitle>
+                <Icon Name="IconName.Edit" />
+                Anamnesis edit
+            </ModalTitle>
+            <CloseButton Clicked="@HideAnamnesisModal" />
+        </ModalHeader>
+        <ModalBody>
+            <Field>
+                <FieldLabel>Anamnesis Q1</FieldLabel>
+                <TextEdit @bind-Text="@SelectedConsultation.Patient.Name" Placeholder="Enter name..." />
+            </Field>
+            <Field>
+                <FieldLabel>Anamnesis Q2</FieldLabel>
+                @* <CheckEdit @bind-Checked="@selectedRow.Patient.IsHighRisk">Check me out</CheckEdit> *@
+            </Field>
+        </ModalBody>
+        <ModalFooter>
+            <Button Color="Color.Secondary" Clicked="@HideAnamnesisModal">Close</Button>
+            <Button Color="Color.Primary" Clicked="@SaveAnamensisChanges">Save Changes</Button>
+        </ModalFooter>
+    </ModalContent>
+</Modal>
+
+<Alert @ref="MissingAnamnesisAlert" Color="Color.Danger">
+    @* <Heading Size="HeadingSize.Is4" TextColor="TextColor.Success"> *@
+    <Heading>
+        Anamnesis missing
+        <CloseButton Clicked="@MissingAnamnesisAlert.Hide"/>
+    </Heading>
+    <Paragraph>
+        A report cannot be sent because patient "@MissingAnamnesisConsultation.Patient.Name" is missing an anamnesis.
+    </Paragraph>
+</Alert>
 
 @code
 {
-    List<Consultation> Consultations;
-    bool IncludeReported;
+    Modal AnamnesisModelRef;
+    Alert MissingAnamnesisAlert;
+    Consultation MissingAnamnesisConsultation = new Consultation { Patient = new Patient() };
+    Consultation SelectedConsultation = new Consultation { Patient = new Patient() };
+    List<Consultation> Consultations = new List<Consultation>();
 
     protected override void OnInitialized()
     {
-        LoadConsultations();
+        Consultations = DbContext.Consultations
+            .Include(c => c.Patient)
+            .Where(c => c.LabTestResult == true && !c.IsTestResultReported ||
+                        c.Patient.IsHighRisk && !c.IsAdmissionReported)
+            .ToList();
+
+        // TODO: Race condition between load and events
         MedicalDataManager.LabReportReceived += OnLabReportReceived;
     }
 
-    void LoadConsultations(bool includeReported = false)
+    void ShowAnamnesisModal() => AnamnesisModelRef.Show();
+    void HideAnamnesisModal() => AnamnesisModelRef.Hide();
+
+    void SaveAnamensisChanges()
     {
-        var query = Context.Consultations
-            .Include(c => c.Patient)
-            .Where(c => c.LabTestResult == true);
+        DbContext.Attach(SelectedConsultation);
+        SelectedConsultation.IsAnamnesisPopulated = true;
+        DbContext.SaveChanges();
+        
+        HideAnamnesisModal();
+    }
 
-        if (!includeReported)
-            query = query.Where(c => !c.IsReported);
-
-        Consultations = query.ToList();
+    void SendReportForAll()
+    {
+        MissingAnamnesisConsultation = Consultations.Where(c => !c.IsAnamnesisPopulated).FirstOrDefault();
+        if (MissingAnamnesisAlert != null)
+        {
+            MissingAnamnesisAlert.Show();
+            return;
+        }
+        
+        
     }
 
     async void OnLabReportReceived(Consultation consultation)
     {
-        Consultations?.Add(consultation);
-        
+        // TODO: Think about blocking the reporting thread here, not so good
+        lock (Consultations)
+        {
+            Consultations.Add(consultation);
+        }
+
         await InvokeAsync(StateHasChanged);
         await JsRuntime.InvokeAsync<object>("notifyNewPositiveLabReport");
     }
 
-    async void UpdateIncludeReported(bool value)
-    {
-        LoadConsultations(value);
-        IncludeReported = value;
-        await InvokeAsync(StateHasChanged);
-    }
-    
     void Print() => JsRuntime.InvokeAsync<object>("foo");
     
-    public void Dispose()
-    {
-        MedicalDataManager.LabReportReceived -= OnLabReportReceived;
-    }
+    public void Dispose() => MedicalDataManager.LabReportReceived -= OnLabReportReceived;
 }

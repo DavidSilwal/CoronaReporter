@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Text;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
+using CoronaReporter.Model;
 
 namespace CoronaReporter.Data
 {
@@ -30,9 +31,7 @@ namespace CoronaReporter.Data
             var consultation2 = new Consultation
             {
                 Id = 1001,
-                PatientId = "1001",
-                LabTestResult = true,
-                IsReported = true
+                PatientId = "1001"
             };
 
             builder.Entity<Consultation>().HasData(consultation1, consultation2);
@@ -41,16 +40,15 @@ namespace CoronaReporter.Data
                 new Patient
                 {
                     Id = "1000",
-                    FirstName = "Shay",
-                    LastName = "Rojansky",
+                    Name = "Shay Rojansky",
                     DateOfBirth = new DateTime(1979, 5, 1),
                 },
                 new Patient
                 {
                     Id = "1001",
-                    FirstName = "Brar",
-                    LastName = "Piening",
+                    Name = "Brar Piening",
                     DateOfBirth = new DateTime(1979, 5, 1),
+                    IsHighRisk = true
                 });
         }
     }
